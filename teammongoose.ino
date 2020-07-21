@@ -215,10 +215,10 @@ void getAngle()
                                   //////////////////////////////COMBINING BOTH ANGLES USING COMPLIMENTARY FILTER////////////////////////
     Total_angle[0] = 0.98 *(Total_angle[0] + Gyro_angle[0]*elapsedTime) + 0.02*Acceleration_angle[0];
     Total_angle[1] = 0.98 *(Total_angle[1] + Gyro_angle[1]*elapsedTime) + 0.02*Acceleration_angle[1];
-                                  //Serial.print(Total_angle[0]);
-                                  //Serial.print("<-----pitch               roll-------->");
-                                  //Serial.print(Total_angle[1]);
-                                  //Serial.println("");
+    Serial.print(Total_angle[0]);
+    Serial.print("<-----pitch               roll-------->");
+    Serial.print(Total_angle[1]);
+    Serial.println("");
                                   ////////////////////////////////The angles update slowly beacuse of so many Serial prints///////////
                                   ///////////////////this is just demonstration///////////////////////////
 }
