@@ -45,7 +45,7 @@ float Acceleration_angle[2];
 float Gyro_angle[2];
 float Total_angle[2];
 float elapsedTime, time, timePrev;
-int i;
+int k, value;
 float rad_to_deg = 180/3.141592654;
 
 void getAngle();
@@ -110,11 +110,11 @@ void loop(){
       //Serial.println(Input);
   balancePID.Compute();                                                  //Supposed to pass this a "double pos", unsure how this works, possibly for Driven Wheel Balance. Calculates "output = Kp * error + integral- Kd * dInput;"
   if(Input > 0){                                                         //If Angle <0, turn motor to correct, direction/intensity TBD
-    value = (Output*5.6);                                                //5.6 is some sort of multiplication factor, unsure, but will have to be changed/tunned
+    value = (Output*);                                                //5.6 is some sort of multiplication factor, unsure, but will have to be changed/tunned
       motorSpeed(value);
   }
   if(Input < 0){
-    value = (Output*5.6);
+    value = (Output);
       motorSpeed(value);
   }
       //Serial.println(value);
