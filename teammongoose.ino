@@ -1,6 +1,11 @@
 #include <Wire.h>
 #include <Servo.h>
 #include <PID_v1.h>
+#include <FreeSixIMU.h>
+#include <FIMU_ADXL345.h>
+#include <FIMU_ITG3200.h>
+#include <CytronMotorDriver.h>
+
 
 int sensVal;           // for raw sensor values 
 float filterVal = 0.001;        // this determines smoothness  - .0001 is max  1 is off (no smoothing)
@@ -14,7 +19,7 @@ int i, j;
 Servo firstESC;
 const int MPU=0x68;             // I2C address of the MPU-6050
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
-    const int numReadings = 10;
+const int numReadings = 10;
 
 int readings[numReadings];      // the readings from the analog input
 int index = 0;                  // the index of the current reading
@@ -22,14 +27,15 @@ int total = 0;                  // the running total
 int average = 0;                // the average
 
 int goal = 300;   //?? What ius this ??
+int value = 0;
 
 double Input;
 double Output;
 double Setpoint = 0;    //Setpoint of 0 Degrees from Verticle
 
-int Kp = 100;
+int Kp = 30;
 int Ki = 0;
-int Kd = 1;
+int Kd = 0.03;
 
 PID balancePID(&Input,&Output,&Setpoint,Kp,Ki,Kd,DIRECT);  
 
@@ -40,37 +46,38 @@ PID balancePID(&Input,&Output,&Setpoint,Kp,Ki,Kd,DIRECT);
     //End PID Balance//
 
     //Start Angle integration//
-int16_t Acc_rawX, Acc_rawY, Acc_rawZ,Gyr_rawX, Gyr_rawY, Gyr_rawZ;
-float Acceleration_angle[2];
-float Gyro_angle[2];
-float Total_angle[2];
-float elapsedTime, time, timePrev;
-int k, value;
-float rad_to_deg = 180/3.141592654;
+int16_t angle[2]; // pitch & roll
 
-void getAngle();
+// Set the FreeSixIMU object
+FreeSixIMU sixDOF = FreeSixIMU();
+int rawSixDof[6]; 
+int16_t _atan2(int32_t y, int32_t x);
+int getAngle();
+
     //End Angle Integration//
+
+    //Start Motor Driver//
+   CytronMD motor(PWM_DIR, 3, 4);  // PWM = Pin 3, DIR = Pin 4.
+   //End Motor Driver//
 
 void setup() 
 {
       //Start Angle integration//
-  Wire.begin();                   /////////////TO BEGIN I2C COMMUNICATIONS///////////////
-  Wire.beginTransmission(0x68);
-  Wire.write(0x6B);
-  Wire.write(0);
-  Wire.endTransmission(true);
-      //Serial.begin(9600);
+      Wire.begin();
+      
+      delay(5);
+       sixDOF.init();                        //begin the IMU
+       delay(5);
       //End Angle Integration//
   
       //Start PID balance//
-  Wire.begin();
   Wire.beginTransmission(MPU);
   Wire.write(0x6B);  // PWR_MGMT_1 register
   Wire.write(0);     // set to zero (wakes up the MPU-6050)
   Wire.endTransmission(true);
   firstESC.attach(9);    // attached to pin 9 I just do this with 1 Servo
   balancePID.SetMode(AUTOMATIC);
-  balancePID.SetOutputLimits(0,255);
+  balancePID.SetOutputLimits(-255,255);
   Serial.begin(9600);         
                                 // initialize all the readings to 0:
   /*
@@ -103,30 +110,27 @@ void setup()
 }
 
 void loop(){
-  getAngle();                                                           //Updates the Pitch Value ( Total_angle[0] ), since can't pass an array without pointers. 
-  Input = Total_angle[0];                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
+ 
+  Input = getAngle();                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
+    
+    //Serial.println(" ");
+    //Serial.print("X:"); 
+    //Serial.print(Input);
+   
+    balancePID.Compute();                                                  //Supposed to pass this a "double pos", unsure how this works, possibly for Driven Wheel Balance. Calculates "output = Kp * error + integral- Kd * dInput;"
+    
+    //Serial.print(" ");
+    //Serial.print("PIDOutput:");
+    //Serial.print(Output);
+    //Serial.println("");
 
-      //Serial.print("Average Value (X): ");
-      //Serial.println(Input);
-  balancePID.Compute();                                                  //Supposed to pass this a "double pos", unsure how this works, possibly for Driven Wheel Balance. Calculates "output = Kp * error + integral- Kd * dInput;"
-  if(Input > 0){                                                         //If Angle <0, turn motor to correct, direction/intensity TBD
-    value = (Output*);                                                //5.6 is some sort of multiplication factor, unsure, but will have to be changed/tunned
-      motorSpeed(value);
-  }
-  if(Input < 0){
-    value = (Output);
-      motorSpeed(value);
-  }
-      //Serial.println(value);
+    motor.setSpeed(Output);
+
 }
 
-int motorSpeed(int newValue){
-      //firstESC.writeMicroseconds(newValue);
-      //  if(Serial.available()){ 
-      //      value = Serial.parseInt();
-      //  }
-      
-}
+//int motorSpeed(int newValue){
+//    motor.setSpeed(newValue);
+//}
 /*
 int averageValue(int GyX){
     total= total - readings[index];
@@ -189,36 +193,36 @@ int smooth(int data, float filterVal, float smoothedVal){
 }
 */
 
-void getAngle() 
+int getAngle() 
 {
-    Wire.beginTransmission(0x68);
-    Wire.write(0x3B); 
-    Wire.endTransmission(false);
-    Wire.requestFrom(0x68,6,true);
-                                  ////////////////////PULLING RAW ACCELEROMETER DATA FROM IMU///////////////// 
-    Acc_rawX=Wire.read()<<8|Wire.read(); 
-    Acc_rawY=Wire.read()<<8|Wire.read();
-    Acc_rawZ=Wire.read()<<8|Wire.read(); 
-                                  /////////////////////CONVERTING RAW DATA TO ANGLES/////////////////////
-    Acceleration_angle[0] = atan((Acc_rawY/16384.0)/sqrt(pow((Acc_rawX/16384.0),2) + pow((Acc_rawZ/16384.0),2)))*rad_to_deg;
-    Acceleration_angle[1] = atan(-1*(Acc_rawX/16384.0)/sqrt(pow((Acc_rawY/16384.0),2) + pow((Acc_rawZ/16384.0),2)))*rad_to_deg;
-    Wire.beginTransmission(0x68);
-    Wire.write(0x43); 
-    Wire.endTransmission(false);
-    Wire.requestFrom(0x68,4,true); 
-                                  //////////////////PULLING RAW GYRO DATA FROM IMU/////////////////////////
-    Gyr_rawX=Wire.read()<<8|Wire.read(); 
-    Gyr_rawY=Wire.read()<<8|Wire.read(); 
-                                  ////////////////////CONVERTING RAW DATA TO ANGLES///////////////////////
-    Gyro_angle[0] = Gyr_rawX/131.0; 
-    Gyro_angle[1] = Gyr_rawY/131.0;
-                                  //////////////////////////////COMBINING BOTH ANGLES USING COMPLIMENTARY FILTER////////////////////////
-    Total_angle[0] = 0.98 *(Total_angle[0] + Gyro_angle[0]*elapsedTime) + 0.02*Acceleration_angle[0];
-    Total_angle[1] = 0.98 *(Total_angle[1] + Gyro_angle[1]*elapsedTime) + 0.02*Acceleration_angle[1];
-    Serial.print(Total_angle[0]);
-    Serial.print("<-----pitch               roll-------->");
-    Serial.print(Total_angle[1]);
-    Serial.println("");
-                                  ////////////////////////////////The angles update slowly beacuse of so many Serial prints///////////
-                                  ///////////////////this is just demonstration///////////////////////////
+  int angleTemp = 0;
+     sixDOF.getRawValues(rawSixDof);
+ //
+  
+  angle[0] = _atan2(rawSixDof[0],rawSixDof[2]);
+  //angle[1] = _atan2(rawSixDof[1],rawSixDof[2]);
+
+  angleTemp = (angle[0]/10.0);
+  return angleTemp;
+}
+
+int16_t _atan2(int32_t y, int32_t x)   //get the _atan2
+{
+  float z = (float)y / x;
+  int16_t a;
+  if ( abs(y) < abs(x) )
+  {
+    a = 573 * z / (1.0f + 0.28f * z * z);
+    if (x<0)
+    {
+    if (y<0) a -= 1800;
+    else a += 1800;
+    }
+  }
+  else
+  {
+    a = 900 - 573 * z / (z * z + 0.28f);
+    if (y<0) a -= 1800;
+  }
+  return a;
 }
