@@ -8,10 +8,10 @@
 
 
 float sensVal;           // for raw sensor values 
-float filterVal = 0.001;        // this determines smoothness  - .0001 is max  1 is off (no smoothing)
+float filterVal = 0.0001;        // this determines smoothness  - .0001 is max  1 is off (no smoothing)
 float smoothedVal;              // this holds the last loop value just use a unique variable for every different sensor that needs smoothing
 
-float smooth(float data, float filterVal, float smoothedVal);
+float averageValue(float GyX);
     //float smoothedVal2;             // this would be the buffer value for another sensor if you needed to smooth two different sensors - not used in this sketch
 
     //Start PID balance//
@@ -34,9 +34,11 @@ double Input;
 double Output;
 double Setpoint = 0;    //Setpoint of 0 Degrees from Verticle
 
-int Kp = 100;
-int Ki = 1;
-int Kd = 0;
+int Kp = 50;
+int Ki = 0;
+int Kd = 1;
+int motorspeed = 0;
+
 
 PID balancePID(&Input,&Output,&Setpoint,Kp,Ki,Kd,DIRECT);  
 
@@ -85,10 +87,29 @@ void setup()
 
 void loop(){
  
-  Input = getAngle();                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
+  //Input = smooth(getAngle(),filterVal, smoothedVal);                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
+    float angle = 0;
+    float angleAvg = 0;
+    int count = 0;
+    
+    for (int thisReading = 0; thisReading < 10; thisReading++){
+        angle = getAngle();
+        if( angle > 10 ){
+          angleAvg = angleAvg + 5;
+          count++;
+        }else if( angle < -10 ){
+          angleAvg = angleAvg - 5;
+          count++;
+        }else{
+          angleAvg = angleAvg + angle;
+          count++;
+        }
+      }
+    Input = angleAvg/count;
+    
     
     Serial.println(" ");    //Debugging
-    Serial.print("X:"); 
+    //Serial.print("X: "); 
     Serial.print(Input);
    
     balancePID.Compute();                                                  //Supposed to pass this a "double pos", unsure how this works, possibly for Driven Wheel Balance. Calculates "output = Kp * error + integral- Kd * dInput;"
@@ -98,8 +119,20 @@ void loop(){
     //Serial.print(Output);
     //Serial.println("");
 
-    motor.setSpeed(0);
+    if(Output > motorspeed){
+      for (int thisReading = motorspeed; thisReading < Output; thisReading = thisReading + 5){
+        motor.setSpeed(thisReading);
+        delay(1);
+      }
+    }else{
+      for (int thisReading = motorspeed; thisReading > Output; thisReading = thisReading - 5){
+        motor.setSpeed(thisReading);
+        delay(1);
+      }
+    }
 
+    motorspeed = Output;
+  
 }
 
 
@@ -117,7 +150,6 @@ float smooth(float data, float filterVal, float smoothedVal){
 
   return (int)smoothedVal;
 }
-
 
 float getAngle() 
 {
