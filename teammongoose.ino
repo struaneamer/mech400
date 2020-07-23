@@ -35,7 +35,7 @@ double Setpoint = 0;    //Setpoint of 0 Degrees from Verticle
 
 int Kp = 30;
 int Ki = 0;
-int Kd = 0.03;
+int Kd = 10;
 
 PID balancePID(&Input,&Output,&Setpoint,Kp,Ki,Kd,DIRECT);  
 
@@ -46,13 +46,13 @@ PID balancePID(&Input,&Output,&Setpoint,Kp,Ki,Kd,DIRECT);
     //End PID Balance//
 
     //Start Angle integration//
-int16_t angle[2]; // pitch & roll
+float angle[2]; // pitch & roll
 
 // Set the FreeSixIMU object
 FreeSixIMU sixDOF = FreeSixIMU();
 int rawSixDof[6]; 
-int16_t _atan2(int32_t y, int32_t x);
-int getAngle();
+float _atan2(int32_t y, int32_t x);
+float getAngle();
 
     //End Angle Integration//
 
@@ -193,9 +193,9 @@ int smooth(int data, float filterVal, float smoothedVal){
 }
 */
 
-int getAngle() 
+float getAngle() 
 {
-  int angleTemp = 0;
+  float angleTemp = 0;
      sixDOF.getRawValues(rawSixDof);
  //
   
@@ -206,10 +206,10 @@ int getAngle()
   return angleTemp;
 }
 
-int16_t _atan2(int32_t y, int32_t x)   //get the _atan2
+float _atan2(int32_t y, int32_t x)   //get the _atan2
 {
   float z = (float)y / x;
-  int16_t a;
+  float a;
   if ( abs(y) < abs(x) )
   {
     a = 573 * z / (1.0f + 0.28f * z * z);
