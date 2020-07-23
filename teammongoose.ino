@@ -32,11 +32,11 @@ int value = 0;
 
 double Input;
 double Output;
-double Setpoint = 0;    //Setpoint of 0 Degrees from Verticle
+double Setpoint = -255;    //Setpoint of 0 Degrees from Verticle
 
 int Kp = 50;
 int Ki = 0;
-int Kd = 1;
+int Kd = 0.1;
 int motorspeed = 0;
 
 
@@ -123,12 +123,12 @@ void loop(){
     //Serial.println("");
 
     if(Output > motorspeed){
-      for (int thisReading = motorspeed; thisReading < Output; thisReading = thisReading + 5){
+      for (int thisReading = motorspeed; thisReading < Output; thisReading = thisReading + 2){
         motor.setSpeed(thisReading);
         delay(1);
       }
     }else{
-      for (int thisReading = motorspeed; thisReading > Output; thisReading = thisReading - 5){
+      for (int thisReading = motorspeed; thisReading > Output; thisReading = thisReading - 2){
         motor.setSpeed(thisReading);
         delay(1);
       }
@@ -139,7 +139,7 @@ void loop(){
 }
 
 
-float smooth(float data, float filterVal, float smoothedVal){
+int smooth(float data, float filterVal, float smoothedVal){
 
 
   if (filterVal > 1){      // check to make sure param's are within range
@@ -163,7 +163,7 @@ int averageValue(int GyX){
       index = 0;                          
     }
     average = total / numReadings;  
-    //Serial.print("Average Value (X): ");Serial.println(average); 
+    Serial.print("Average Value (X): ");Serial.println(average); 
    return average;   
 }
 
