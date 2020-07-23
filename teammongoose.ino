@@ -8,7 +8,7 @@
 
 
 float sensVal;           // for raw sensor values 
-float filterVal = 0.0001;        // this determines smoothness  - .0001 is max  1 is off (no smoothing)
+float filterVal = 0.001;        // this determines smoothness  - .0001 is max  1 is off (no smoothing)
 float smoothedVal;              // this holds the last loop value just use a unique variable for every different sensor that needs smoothing
 
 float averageValue(float GyX);
@@ -87,7 +87,9 @@ void setup()
 
 void loop(){
  
-  //Input = smooth(getAngle(),filterVal, smoothedVal);                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
+  Input = smooth(getAngle(),filterVal, smoothedVal);                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
+    
+    /*
     float angle = 0;
     float angleAvg = 0;
     int count = 0;
@@ -106,6 +108,7 @@ void loop(){
         }
       }
     Input = angleAvg/count;
+    */
     
     
     Serial.println(" ");    //Debugging
@@ -153,14 +156,21 @@ float smooth(float data, float filterVal, float smoothedVal){
 
 float getAngle() 
 {
-  float angleTemp = 0;
-     sixDOF.getRawValues(rawSixDof);
+  //float angleTemp = 0;
+  sixDOF.getRawValues(rawSixDof);
   
-  angle[0] = _atan2(rawSixDof[0],rawSixDof[2]);
+  if(rawSixDof[2] < 0){
+    return ((rawSixDof[0]^2)+(rawSixDof[2]^2))^(1/2);
+  }
+  if(rawSixDof[2] > 0){
+    return -((rawSixDof[0]^2)+(rawSixDof[2]^2))^(1/2);
+  }
+
+  //angle[0] = _atan2(rawSixDof[0],rawSixDof[2]);
   //angle[1] = _atan2(rawSixDof[1],rawSixDof[2]);
 
-  angleTemp = (angle[0]/10.0);
-  return angleTemp;
+  //angleTemp = (angle[0]/10.0);
+  //return angleTemp;
 }
 
 float _atan2(int32_t y, int32_t x)   //get the _atan2
