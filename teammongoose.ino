@@ -7,10 +7,11 @@
 #include <CytronMotorDriver.h>
 
 
-int sensVal;           // for raw sensor values 
+float sensVal;           // for raw sensor values 
 float filterVal = 0.001;        // this determines smoothness  - .0001 is max  1 is off (no smoothing)
 float smoothedVal;              // this holds the last loop value just use a unique variable for every different sensor that needs smoothing
 
+float smooth(float data, float filterVal, float smoothedVal);
     //float smoothedVal2;             // this would be the buffer value for another sensor if you needed to smooth two different sensors - not used in this sketch
 
     //Start PID balance//
@@ -33,9 +34,9 @@ double Input;
 double Output;
 double Setpoint = 0;    //Setpoint of 0 Degrees from Verticle
 
-int Kp = 30;
-int Ki = 0;
-int Kd = 10;
+int Kp = 100;
+int Ki = 1;
+int Kd = 0;
 
 PID balancePID(&Input,&Output,&Setpoint,Kp,Ki,Kd,DIRECT);  
 
@@ -86,9 +87,9 @@ void loop(){
  
   Input = getAngle();                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
     
-    //Serial.println(" ");    //Debugging
-    //Serial.print("X:"); 
-    //Serial.print(Input);
+    Serial.println(" ");    //Debugging
+    Serial.print("X:"); 
+    Serial.print(Input);
    
     balancePID.Compute();                                                  //Supposed to pass this a "double pos", unsure how this works, possibly for Driven Wheel Balance. Calculates "output = Kp * error + integral- Kd * dInput;"
     
@@ -97,12 +98,12 @@ void loop(){
     //Serial.print(Output);
     //Serial.println("");
 
-    motor.setSpeed(Output);
+    motor.setSpeed(0);
 
 }
 
-/*
-int smooth(int data, float filterVal, float smoothedVal){
+
+float smooth(float data, float filterVal, float smoothedVal){
 
 
   if (filterVal > 1){      // check to make sure param's are within range
@@ -116,7 +117,7 @@ int smooth(int data, float filterVal, float smoothedVal){
 
   return (int)smoothedVal;
 }
-*/
+
 
 float getAngle() 
 {
