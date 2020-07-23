@@ -154,6 +154,19 @@ float smooth(float data, float filterVal, float smoothedVal){
   return (int)smoothedVal;
 }
 
+int averageValue(int GyX){
+    total= total - readings[index];
+    readings[index] = GyX;
+    total= total + readings[index];     
+    index = index + 1;                    
+    if (index >= numReadings){              
+      index = 0;                          
+    }
+    average = total / numReadings;  
+    //Serial.print("Average Value (X): ");Serial.println(average); 
+   return average;   
+}
+
 float getAngle() 
 {
   //float angleTemp = 0;
