@@ -5,6 +5,23 @@
 #include <FIMU_ADXL345.h>
 #include <FIMU_ITG3200.h>
 #include <CytronMotorDriver.h>
+#include <math.h>
+
+unsigned long last_read_time;
+float         last_x_angle;  // These are the filtered angles
+//float         last_y_angle;
+//float         last_z_angle;  
+float         last_gyro_x_angle;  // Store the gyro angles to compare drift
+//float         last_gyro_y_angle;
+//float         last_gyro_z_angle;
+
+inline unsigned long get_last_time() {return last_read_time;} //DONT UNDERSTAND THIS
+inline float get_last_x_angle() {return last_x_angle;}
+//inline float get_last_y_angle() {return last_y_angle;}
+//inline float get_last_z_angle() {return last_z_angle;}
+inline float get_last_gyro_x_angle() {return last_gyro_x_angle;}
+//inline float get_last_gyro_y_angle() {return last_gyro_y_angle;}
+//inline float get_last_gyro_z_angle() {return last_gyro_z_angle;}
 
 
 float sensVal;           // for raw sensor values 
@@ -32,12 +49,14 @@ int value = 0;
 
 double Input;
 double Output;
-double Setpoint = -255;    //Setpoint of 0 Degrees from Verticle
+double Setpoint = 0;    //Setpoint of 0 Degrees from Verticle
 
 int Kp = 50;
 int Ki = 0;
 int Kd = 0.1;
 int motorspeed = 0;
+
+float RADIANS_TO_DEGREES = 180/3.14159;
 
 
 PID balancePID(&Input,&Output,&Setpoint,Kp,Ki,Kd,DIRECT);  
@@ -58,7 +77,7 @@ float getAngle();
     //End Angle Integration//
 
     //Start Motor Driver//
-   CytronMD motor(PWM_DIR, 3, 4);  // PWM = Pin 3, DIR = Pin 4.
+CytronMD motor(PWM_DIR, 3, 4);  // PWM = Pin 3, DIR = Pin 4.
    //End Motor Driver//
 
 void setup() 
@@ -169,23 +188,64 @@ int averageValue(int GyX){
 
 float getAngle() 
 {
-  //float angleTemp = 0;
+  double dT;
+
+  float angleTemp = 0;
+
+// Read the raw values.
   sixDOF.getRawValues(rawSixDof);
+
+  float acceX = rawSixDof[0];
+  float acceY = rawSixDof[1];
+  float acceZ = rawSixDof[2];
+  float gyroX = rawSixDof[3];
+
+// Get the time of reading for rotation computations
+  unsigned long t_now = millis();
+
+// Convert gyro values to degrees/sec
+  float FS_SEL = 131; //Scalling factor that converts raw GRYO data into degrees/s, will likely have to change. 
+
+  float gyro_x = (accel_t_gyro.value.x_gyro - base_x_gyro)/FS_SEL; //DONT UNDERSTAND THIS, Original code has line: "accel_t_gyro_union accel_t_gyro;" Unsure what this does
+//  float accel_vector_length = sqrt(pow(accel_x,2) + pow(accel_y,2) + pow(accel_z,2));
+  float accel_angle_x = atan(-1*acceY/sqrt(pow(acceX,2) + pow(acceZ,2)))*RADIANS_TO_DEGREES; //Unsure if order of accelerations are correct
+  float accel_angle_z = 0;
+
+// Compute the (filtered) gyro angles
+  float dt =(t_now - get_last_time())/1000.0;
   
-  if(rawSixDof[2] < 0){
-    return ((rawSixDof[0]^2)+(rawSixDof[2]^2))^(1/2);
-  }
-  if(rawSixDof[2] > 0){
-    return -((rawSixDof[0]^2)+(rawSixDof[2]^2))^(1/2);
-  }
+  float gyro_angle_x = gyroX*dt + get_last_x_angle();
+
+// Compute the drifting gyro angles
+  float unfiltered_gyro_angle_x = gyroX*dt + get_last_gyro_x_angle();
+
+// Apply the complementary filter to figure out the change in angle - choice of alpha is
+  // estimated now.  Alpha depends on the sampling rate...
+  float alpha = 0.96;
+  float angle_x = alpha*gyro_angle_x + (1.0 - alpha)*accel_angle_x;
+
+// Update the saved data with the latest values
+  set_last_read_angle_data(t_now, angle_x, unfiltered_gyro_angle_x);
+
+return angle_x;
+
+/* Previous methods, commented out
+  //if(rawSixDof[2] < 0){
+  //  return ((rawSixDof[0]^2)+(rawSixDof[2]^2))^(1/2);
+  //}
+  //if(rawSixDof[2] > 0){
+  //  return -((rawSixDof[0]^2)+(rawSixDof[2]^2))^(1/2);
+  //}
 
   //angle[0] = _atan2(rawSixDof[0],rawSixDof[2]);
   //angle[1] = _atan2(rawSixDof[1],rawSixDof[2]);
 
-  //angleTemp = (angle[0]/10.0);
-  //return angleTemp;
+  angleTemp = (_atan2(rawSixDof[0],rawSixDof[2])/10.0);
+
+*/
 }
 
+/* This or Math header
 float _atan2(int32_t y, int32_t x)   //get the _atan2
 {
   float z = (float)y / x;
@@ -205,4 +265,11 @@ float _atan2(int32_t y, int32_t x)   //get the _atan2
     if (y<0) a -= 1800;
   }
   return a;
+}
+*/
+
+void set_last_read_angle_data(unsigned long time, float x, float x_gyro) {
+  last_read_time = time;
+  last_x_angle = x;
+  last_gyro_x_angle = x_gyro;
 }
