@@ -8,11 +8,11 @@
 #include <math.h>
 
 unsigned long last_read_time;
-float         last_x_angle;  // These are the filtered angles
-//float         last_y_angle;
+//float         last_x_angle;  // These are the filtered angles
+float         last_y_angle;
 //float         last_z_angle;  
-float         last_gyro_x_angle;  // Store the gyro angles to compare drift
-//float         last_gyro_y_angle;
+//float         last_gyro_x_angle;  // Store the gyro angles to compare drift
+float         last_gyro_y_angle;
 //float         last_gyro_z_angle;
 
 float    base_x_accel;    //Calibrated accelX
@@ -25,11 +25,11 @@ float    base_y_gyro;   //Calibrated gyroY
 
 
 inline unsigned long get_last_time() {return last_read_time;} //DONT UNDERSTAND THIS
-inline float get_last_x_angle() {return last_x_angle;}
-//inline float get_last_y_angle() {return last_y_angle;}
+//inline float get_last_x_angle() {return last_x_angle;}
+inline float get_last_y_angle() {return last_y_angle;}
 //inline float get_last_z_angle() {return last_z_angle;}
-inline float get_last_gyro_x_angle() {return last_gyro_x_angle;}
-//inline float get_last_gyro_y_angle() {return last_gyro_y_angle;}
+//inline float get_last_gyro_x_angle() {return last_gyro_x_angle;}
+inline float get_last_gyro_y_angle() {return last_gyro_y_angle;}
 //inline float get_last_gyro_z_angle() {return last_gyro_z_angle;}
 
 
@@ -53,16 +53,16 @@ int index = 0;                  // the index of the current reading
 int total = 0;                  // the running total
 int average = 0;                // the average
 
-int goal = 300;   //?? What ius this ??
+int goal = 0;   //?? What ius this ??
 int value = 0;
 
 double Input;
 double Output;
 double Setpoint = 0;    //Setpoint of 0 Degrees from Verticle
 
-int Kp = 50;
+int Kp = 200;
 int Ki = 0;
-int Kd = 0.1;
+int Kd = 0;
 int motorspeed = 0;
 
 float RADIANS_TO_DEGREES = 180/3.14159;
@@ -113,11 +113,12 @@ void setup()
       //End PID Balance//
 
       calibrate_sensors();
+      motor.setSpeed(motorspeed);
 }
 
 void loop(){
  
-  Input = smooth(getAngle(),filterVal, smoothedVal);                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
+  Input = getAngle();                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
     
     /*
     float angle = 0;
@@ -152,19 +153,22 @@ void loop(){
     //Serial.print(Output);
     //Serial.println("");
 
+  /*
     if(Output > motorspeed){
-      for (int thisReading = motorspeed; thisReading < Output; thisReading = thisReading + 2){
+      for (int thisReading = motorspeed; thisReading < Output; thisReading = thisReading + 1){
         motor.setSpeed(thisReading);
-        delay(1);
+        //delayMicroseconds(20);
       }
     }else{
-      for (int thisReading = motorspeed; thisReading > Output; thisReading = thisReading - 2){
+      for (int thisReading = motorspeed; thisReading > Output; thisReading = thisReading - 1){
         motor.setSpeed(thisReading);
-        delay(1);
+        //delayMicroseconds(20);
       }
     }
+    */
 
-    motorspeed = Output;
+    //motorspeed = Output;
+    motor.setSpeed(Output);
   
 }
 
@@ -217,7 +221,7 @@ float getAngle()
 // Convert gyro values to degrees/sec
   float FS_SEL = 3;           //Scalling factor that converts raw GRYO data into degrees/s, will likely have to change. 
 
-  float gyroY = (gyroY - base_y_gyro)/FS_SEL; //DONT UNDERSTAND THIS, Original code has line: "accel_t_gyro_union accel_t_gyro;" Unsure what this does
+  float gyro_y = (gyroY - base_y_gyro)/FS_SEL; //DONT UNDERSTAND THIS, Original code has line: "accel_t_gyro_union accel_t_gyro;" Unsure what this does
 //  float accel_vector_length = sqrt(pow(accel_x,2) + pow(accel_y,2) + pow(accel_z,2));
   float accel_angle_y = atan(-1*acceX/sqrt(pow(acceY,2) + pow(acceZ,2)))*RADIANS_TO_DEGREES; //Unsure if order of accelerations are correct
   float accel_angle_z = 0;
@@ -225,14 +229,14 @@ float getAngle()
 // Compute the (filtered) gyro angles
   float dt =(t_now - get_last_time())/1000.0;
   
-  float gyro_angle_y = gyroY*dt + get_last_y_angle();
+  float gyro_angle_y = gyro_y*dt + get_last_y_angle();
 
 // Compute the drifting gyro angles
   float unfiltered_gyro_angle_y = gyroY*dt + get_last_gyro_y_angle();
 
 // Apply the complementary filter to figure out the change in angle - choice of alpha is
   // estimated now.  Alpha depends on the sampling rate...
-  float alpha = 0.96;
+  float alpha = 0.98;
   float angle_y = alpha*gyro_angle_y + (1.0 - alpha)*accel_angle_y;
 
 // Update the saved data with the latest values
@@ -279,10 +283,10 @@ float _atan2(int32_t y, int32_t x)   //get the _atan2
 }
 */
 
-void set_last_read_angle_data(unsigned long time, float x, float x_gyro) {
+void set_last_read_angle_data(unsigned long time, float y, float y_gyro) {
   last_read_time = time;
-  last_x_angle = x;
-  last_gyro_x_angle = x_gyro;
+  last_y_angle = y;
+  last_gyro_y_angle = y_gyro;
 }
 
 void calibrate_sensors() {
@@ -299,13 +303,6 @@ void calibrate_sensors() {
 
   // Discard the first set of values read from the IMU
   //read_gyro_accel_vals((uint8_t *) &accel_t_gyro);
-  
-  sixDOF.getRawValues(rawSixDof);
-
-  float acceX = rawSixDof[0];
-  float acceY = rawSixDof[1];
-  float acceZ = rawSixDof[2];
-  float gyroY = rawSixDof[4];
   
   // Read and average the raw values from the IMU
   for (int i = 0; i < num_readings; i++) {
@@ -341,6 +338,14 @@ void calibrate_sensors() {
   //base_x_gyro = x_gyro;
   base_y_gyro = y_gyro;
   //base_z_gyro = z_gyro;
-  
+
+  Serial.print("base_x_accel: ");
+   Serial.println(base_x_accel);
+     Serial.print("base_y_accel: ");
+   Serial.println(base_y_accel);
+     Serial.print("base_z_accel: ");
+   Serial.println(base_z_accel);
+     Serial.print("ase_y_gyro: ");
+   Serial.println(base_y_gyro);  
   Serial.println("Finishing Calibration");
 }
