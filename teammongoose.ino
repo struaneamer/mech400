@@ -15,13 +15,14 @@ float         last_gyro_x_angle;  // Store the gyro angles to compare drift
 //float         last_gyro_y_angle;
 //float         last_gyro_z_angle;
 
-float    base_x_accel;
-float    base_y_accel;
-float    base_z_accel;
+float    base_x_accel;    //Calibrated accelX
+float    base_y_accel;    //Calibrated accelY
+float    base_z_accel;    //Calibrated accelZ
 
 //float    base_x_gyro;
-float    base_y_gyro;
+float    base_y_gyro;   //Calibrated gyroY
 //float    base_z_gyro;
+
 
 inline unsigned long get_last_time() {return last_read_time;} //DONT UNDERSTAND THIS
 inline float get_last_x_angle() {return last_x_angle;}
@@ -216,28 +217,28 @@ float getAngle()
 // Convert gyro values to degrees/sec
   float FS_SEL = 3;           //Scalling factor that converts raw GRYO data into degrees/s, will likely have to change. 
 
-  float gyro_x = (gyroY - base_x_gyro)/FS_SEL; //DONT UNDERSTAND THIS, Original code has line: "accel_t_gyro_union accel_t_gyro;" Unsure what this does
+  float gyroY = (gyroY - base_y_gyro)/FS_SEL; //DONT UNDERSTAND THIS, Original code has line: "accel_t_gyro_union accel_t_gyro;" Unsure what this does
 //  float accel_vector_length = sqrt(pow(accel_x,2) + pow(accel_y,2) + pow(accel_z,2));
-  float accel_angle_x = atan(-1*acceY/sqrt(pow(acceX,2) + pow(acceZ,2)))*RADIANS_TO_DEGREES; //Unsure if order of accelerations are correct
+  float accel_angle_y = atan(-1*acceX/sqrt(pow(acceY,2) + pow(acceZ,2)))*RADIANS_TO_DEGREES; //Unsure if order of accelerations are correct
   float accel_angle_z = 0;
 
 // Compute the (filtered) gyro angles
   float dt =(t_now - get_last_time())/1000.0;
   
-  float gyro_angle_x = gyroX*dt + get_last_x_angle();
+  float gyro_angle_y = gyroY*dt + get_last_y_angle();
 
 // Compute the drifting gyro angles
-  float unfiltered_gyro_angle_x = gyroX*dt + get_last_gyro_x_angle();
+  float unfiltered_gyro_angle_y = gyroY*dt + get_last_gyro_y_angle();
 
 // Apply the complementary filter to figure out the change in angle - choice of alpha is
   // estimated now.  Alpha depends on the sampling rate...
   float alpha = 0.96;
-  float angle_x = alpha*gyro_angle_x + (1.0 - alpha)*accel_angle_x;
+  float angle_y = alpha*gyro_angle_y + (1.0 - alpha)*accel_angle_y;
 
 // Update the saved data with the latest values
-  set_last_read_angle_data(t_now, angle_x, unfiltered_gyro_angle_x);
+  set_last_read_angle_data(t_now, angle_y, unfiltered_gyro_angle_y);
 
-return angle_x;
+return angle_y;
 
 /* Previous methods, commented out
   //if(rawSixDof[2] < 0){
@@ -289,10 +290,10 @@ void calibrate_sensors() {
   float                 x_accel = 0;
   float                 y_accel = 0;
   float                 z_accel = 0;
-  float                 x_gyro = 0;
+  //float                 x_gyro = 0;
   float                 y_gyro = 0;
-  float                 z_gyro = 0;
-  accel_t_gyro_union    accel_t_gyro;
+  //float                 z_gyro = 0;
+  //accel_t_gyro_union    accel_t_gyro;
   
   Serial.println("Starting Calibration");
 
