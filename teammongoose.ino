@@ -15,6 +15,14 @@ float         last_gyro_x_angle;  // Store the gyro angles to compare drift
 //float         last_gyro_y_angle;
 //float         last_gyro_z_angle;
 
+float    base_x_accel;
+float    base_y_accel;
+float    base_z_accel;
+
+//float    base_x_gyro;
+float    base_y_gyro;
+//float    base_z_gyro;
+
 inline unsigned long get_last_time() {return last_read_time;} //DONT UNDERSTAND THIS
 inline float get_last_x_angle() {return last_x_angle;}
 //inline float get_last_y_angle() {return last_y_angle;}
@@ -91,17 +99,19 @@ void setup()
       //End Angle Integration//
   
       //Start PID balance//
-  Wire.beginTransmission(MPU);
-  Wire.write(0x6B);  // PWR_MGMT_1 register
-  Wire.write(0);     // set to zero (wakes up the MPU-6050)
-  Wire.endTransmission(true);
-  firstESC.attach(9);    // attached to pin 9 I just do this with 1 Servo
-  balancePID.SetMode(AUTOMATIC);
-  balancePID.SetOutputLimits(-255,255);
-  Serial.begin(9600);         
+      Wire.beginTransmission(MPU);
+      Wire.write(0x6B);  // PWR_MGMT_1 register
+      Wire.write(0);     // set to zero (wakes up the MPU-6050)
+      Wire.endTransmission(true);
+      firstESC.attach(9);    // attached to pin 9 I just do this with 1 Servo
+      balancePID.SetMode(AUTOMATIC);
+      balancePID.SetOutputLimits(-255,255);
+      Serial.begin(9600);         
       // initialize all the readings to 0:
   
       //End PID Balance//
+
+      calibrate_sensors();
 }
 
 void loop(){
@@ -198,15 +208,15 @@ float getAngle()
   float acceX = rawSixDof[0];
   float acceY = rawSixDof[1];
   float acceZ = rawSixDof[2];
-  float gyroX = rawSixDof[3];
+  float gyroY = rawSixDof[4];
 
 // Get the time of reading for rotation computations
   unsigned long t_now = millis();
 
 // Convert gyro values to degrees/sec
-  float FS_SEL = 131; //Scalling factor that converts raw GRYO data into degrees/s, will likely have to change. 
+  float FS_SEL = 3;           //Scalling factor that converts raw GRYO data into degrees/s, will likely have to change. 
 
-  float gyro_x = (accel_t_gyro.value.x_gyro - base_x_gyro)/FS_SEL; //DONT UNDERSTAND THIS, Original code has line: "accel_t_gyro_union accel_t_gyro;" Unsure what this does
+  float gyro_x = (gyroY - base_x_gyro)/FS_SEL; //DONT UNDERSTAND THIS, Original code has line: "accel_t_gyro_union accel_t_gyro;" Unsure what this does
 //  float accel_vector_length = sqrt(pow(accel_x,2) + pow(accel_y,2) + pow(accel_z,2));
   float accel_angle_x = atan(-1*acceY/sqrt(pow(acceX,2) + pow(acceZ,2)))*RADIANS_TO_DEGREES; //Unsure if order of accelerations are correct
   float accel_angle_z = 0;
@@ -272,4 +282,64 @@ void set_last_read_angle_data(unsigned long time, float x, float x_gyro) {
   last_read_time = time;
   last_x_angle = x;
   last_gyro_x_angle = x_gyro;
+}
+
+void calibrate_sensors() {
+  int                   num_readings = 10;
+  float                 x_accel = 0;
+  float                 y_accel = 0;
+  float                 z_accel = 0;
+  float                 x_gyro = 0;
+  float                 y_gyro = 0;
+  float                 z_gyro = 0;
+  accel_t_gyro_union    accel_t_gyro;
+  
+  Serial.println("Starting Calibration");
+
+  // Discard the first set of values read from the IMU
+  //read_gyro_accel_vals((uint8_t *) &accel_t_gyro);
+  
+  sixDOF.getRawValues(rawSixDof);
+
+  float acceX = rawSixDof[0];
+  float acceY = rawSixDof[1];
+  float acceZ = rawSixDof[2];
+  float gyroY = rawSixDof[4];
+  
+  // Read and average the raw values from the IMU
+  for (int i = 0; i < num_readings; i++) {
+    sixDOF.getRawValues(rawSixDof);
+
+    x_accel += rawSixDof[0];
+    y_accel += rawSixDof[1];
+    z_accel += rawSixDof[2];
+    y_gyro += rawSixDof[4];
+/*
+    read_gyro_accel_vals((uint8_t *) &accel_t_gyro);
+    x_accel += accel_t_gyro.value.x_accel;
+    y_accel += accel_t_gyro.value.y_accel;
+    z_accel += accel_t_gyro.value.z_accel;
+    x_gyro += accel_t_gyro.value.x_gyro;
+    y_gyro += accel_t_gyro.value.y_gyro;
+    z_gyro += accel_t_gyro.value.z_gyro;
+*/
+
+    delay(100);
+  }
+  x_accel /= num_readings;
+  y_accel /= num_readings;
+  z_accel /= num_readings;
+  //x_gyro /= num_readings;
+  y_gyro /= num_readings;
+  //z_gyro /= num_readings;
+  
+  // Store the raw calibration values globally
+  base_x_accel = x_accel;
+  base_y_accel = y_accel;
+  base_z_accel = z_accel;
+  //base_x_gyro = x_gyro;
+  base_y_gyro = y_gyro;
+  //base_z_gyro = z_gyro;
+  
+  //Serial.println("Finishing Calibration");
 }
