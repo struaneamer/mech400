@@ -341,5 +341,5 @@ void calibrate_sensors() {
   base_y_gyro = y_gyro;
   //base_z_gyro = z_gyro;
   
-  //Serial.println("Finishing Calibration");
+  Serial.println("Finishing Calibration");
 }
