@@ -60,7 +60,7 @@ double Input;
 double Output;
 double Setpoint = 0;    //Setpoint of 0 Degrees from Verticle
 
-int Kp = 200;
+int Kp = 50;
 int Ki = 0;
 int Kd = 0;
 int motorspeed = 0;
@@ -167,8 +167,8 @@ void loop(){
     }
     */
 
-    //motorspeed = Output;
-    motor.setSpeed(Output);
+    motorspeed = Output;
+    motor.setSpeed(motorspeed);
   
 }
 
@@ -209,11 +209,19 @@ float getAngle()
 
 // Read the raw values.
   sixDOF.getRawValues(rawSixDof);
-
-  float acceX = rawSixDof[0];
-  float acceY = rawSixDof[1];
-  float acceZ = rawSixDof[2];
-  float gyroY = rawSixDof[4];
+  Serial.println(" ");
+  float acceX = rawSixDof[0] - base_x_accel;
+  Serial.print("Accel Value (X): ");
+  Serial.println(acceX);
+  float acceY = rawSixDof[1] - base_y_accel;
+  Serial.print("Accel Value (Y): " );
+   Serial.println(acceY);
+  float acceZ = rawSixDof[2] - base_z_accel;
+  Serial.print("Accel Value (Z): " );
+   Serial.println(acceZ);
+  float gyroY = rawSixDof[4] - base_y_gyro;
+  Serial.print("Gyro Value (Y): " );
+   Serial.println(gyroY);
 
 // Get the time of reading for rotation computations
   unsigned long t_now = millis();
@@ -332,20 +340,21 @@ void calibrate_sensors() {
   //z_gyro /= num_readings;
   
   // Store the raw calibration values globally
-  base_x_accel = x_accel;
-  base_y_accel = y_accel;
-  base_z_accel = z_accel;
+  base_x_accel = 5.7; //x_accel;
+  base_y_accel = 4.1; //y_accel;
+  base_z_accel = 254.1; //z_accel;
   //base_x_gyro = x_gyro;
-  base_y_gyro = y_gyro;
+  base_y_gyro = -6.3// y_gyro;
   //base_z_gyro = z_gyro;
-
+/*
   Serial.print("base_x_accel: ");
    Serial.println(base_x_accel);
      Serial.print("base_y_accel: ");
    Serial.println(base_y_accel);
      Serial.print("base_z_accel: ");
    Serial.println(base_z_accel);
-     Serial.print("ase_y_gyro: ");
+     Serial.print("base_y_gyro: ");
    Serial.println(base_y_gyro);  
   Serial.println("Finishing Calibration");
+  */
 }
