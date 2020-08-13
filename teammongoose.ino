@@ -34,14 +34,14 @@ inline float get_last_gyro_y_angle() {return last_gyro_y_angle;}
 
 
 float sensVal;           // for raw sensor values 
-float filterVal = 0.001;        // this determines smoothness  - .0001 is max  1 is off (no smoothing)
+float filterVal = 0.0001;        // this determines smoothness  - .0001 is max  1 is off (no smoothing)
 float smoothedVal;              // this holds the last loop value just use a unique variable for every different sensor that needs smoothing
 
 float averageValue(float GyX);
     //float smoothedVal2;             // this would be the buffer value for another sensor if you needed to smooth two different sensors - not used in this sketch
 
     //Start PID balance//
-int i, j;  
+int i, j, t1, t2,tAvg;  
 
 Servo firstESC;
 const int MPU=0x68;             // I2C address of the MPU-6050
@@ -58,11 +58,12 @@ int value = 0;
 
 double Input;
 double Output;
-double Setpoint = 0;    //Setpoint of 0 Degrees from Verticle
+double Setpoint = 0.75;    //Setpoint of 0 Degrees from Verticle
 
-int Kp = 50;
-int Ki = 0;
-int Kd = 0;
+int Kp = 35;
+int Ki = 135;
+int Kd = 10;
+
 int motorspeed = 0;
 
 float RADIANS_TO_DEGREES = 180/3.14159;
@@ -74,6 +75,7 @@ PID balancePID(&Input,&Output,&Setpoint,Kp,Ki,Kd,DIRECT);
 
     //Start Angle integration//
 float angle[2]; // pitch & roll
+float angles[3]; // yaw pitch roll
 
 // Set the FreeSixIMU object
 FreeSixIMU sixDOF = FreeSixIMU();
@@ -92,11 +94,12 @@ CytronMD motor(PWM_DIR, 3, 4);  // PWM = Pin 3, DIR = Pin 4.
 void setup() 
 {
       //Start Angle integration//
+      Serial.begin(9600);      
       Wire.begin();
       
-      delay(5);
+     //delay(5);
        sixDOF.init();                        //begin the IMU
-       delay(5);
+       //delay(5);
       //End Angle Integration//
   
       //Start PID balance//
@@ -107,7 +110,7 @@ void setup()
       firstESC.attach(9);    // attached to pin 9 I just do this with 1 Servo
       balancePID.SetMode(AUTOMATIC);
       balancePID.SetOutputLimits(-255,255);
-      Serial.begin(9600);         
+      //Serial.begin(9600);         
       // initialize all the readings to 0:
   
       //End PID Balance//
@@ -117,11 +120,28 @@ void setup()
 }
 
 void loop(){
- 
-  Input = getAngle();                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
+  t1 = millis();
+  sixDOF.getEuler(angles);
+  Input = angles[1];
+  //Input = getAngle();                                               //Removed Smoothing, likely done by complementary filter in "getAngle()"
+    // Read the raw values.
+  sixDOF.getRawValues(rawSixDof);
+  /*Serial.println(" ");
+  float acceX = rawSixDof[0]  ;//-base_x_accel;
+  Serial.print("Accel Value (X): ");
+  Serial.println(acceX);
+  float acceY = rawSixDof[1] ;//- base_y_accel;
+  Serial.print("Accel Value (Y): " );
+   Serial.println(acceY);
+  float acceZ = rawSixDof[2] ;//- base_z_accel;
+  Serial.print("Accel Value (Z): " );
+   Serial.println(acceZ);
+  float gyroY = rawSixDof[4] ;//- base_y_gyro;
+  Serial.print("Gyro Value (Y): " );
+   Serial.println(gyroY);
+*/
     
-    /*
-    float angle = 0;
+   /* float angle = 0;
     float angleAvg = 0;
     int count = 0;
     
@@ -142,9 +162,9 @@ void loop(){
     */
     
     
-    Serial.println(" ");    //Debugging
-    //Serial.print("X: "); 
-    Serial.print(Input);
+   Serial.println(" ");    //Debugging
+   Serial.print("X: "); 
+   Serial.print(Input);
    
     balancePID.Compute();                                                  //Supposed to pass this a "double pos", unsure how this works, possibly for Driven Wheel Balance. Calculates "output = Kp * error + integral- Kd * dInput;"
     
@@ -155,7 +175,7 @@ void loop(){
 
   /*
     if(Output > motorspeed){
-      for (int thisReading = motorspeed; thisReading < Output; thisReading = thisReading + 1){
+      for (int thisReading = motorspeed; thisReading < Output; thisReading = thisReading + 1){  
         motor.setSpeed(thisReading);
         //delayMicroseconds(20);
       }
@@ -168,8 +188,20 @@ void loop(){
     */
 
     motorspeed = Output;
+    if( motorspeed == 0 ){
+      motorspeed = 1;
+    }
     motor.setSpeed(motorspeed);
-  
+    //t2 = millis();
+    //tAvg = t2 - t1;
+    //Serial.println(tAvg);
+ // if( i == 1000 ){
+ //   i = 0;
+ //   Kp = Kp * 2;
+ //   Serial.print("Kp: ");
+ //   Serial.println(Kp);
+  //}
+  //i++;
 }
 
 
@@ -209,19 +241,19 @@ float getAngle()
 
 // Read the raw values.
   sixDOF.getRawValues(rawSixDof);
-  Serial.println(" ");
-  float acceX = rawSixDof[0] - base_x_accel;
-  Serial.print("Accel Value (X): ");
-  Serial.println(acceX);
-  float acceY = rawSixDof[1] - base_y_accel;
-  Serial.print("Accel Value (Y): " );
-   Serial.println(acceY);
-  float acceZ = rawSixDof[2] - base_z_accel;
-  Serial.print("Accel Value (Z): " );
-   Serial.println(acceZ);
-  float gyroY = rawSixDof[4] - base_y_gyro;
-  Serial.print("Gyro Value (Y): " );
-   Serial.println(gyroY);
+  //Serial.println(" ");
+  float acceX = rawSixDof[0]  ;//-base_x_accel;
+  //Serial.print("Accel Value (X): ");
+  //Serial.println(acceX);
+  float acceY = rawSixDof[1] ;//- base_y_accel;
+  //Serial.print("Accel Value (Y): " );
+   //Serial.println(acceY);
+  float acceZ = rawSixDof[2] ;//- base_z_accel;
+  //Serial.print("Accel Value (Z): " );
+  // Serial.println(acceZ);
+  float gyroY = rawSixDof[4] ;//- base_y_gyro;
+  //Serial.print("Gyro Value (Y): " );
+   //Serial.println(gyroY);
 
 // Get the time of reading for rotation computations
   unsigned long t_now = millis();
@@ -244,7 +276,7 @@ float getAngle()
 
 // Apply the complementary filter to figure out the change in angle - choice of alpha is
   // estimated now.  Alpha depends on the sampling rate...
-  float alpha = 0.98;
+  float alpha = 0.999;
   float angle_y = alpha*gyro_angle_y + (1.0 - alpha)*accel_angle_y;
 
 // Update the saved data with the latest values
@@ -259,12 +291,9 @@ return angle_y;
   //if(rawSixDof[2] > 0){
   //  return -((rawSixDof[0]^2)+(rawSixDof[2]^2))^(1/2);
   //}
-
   //angle[0] = _atan2(rawSixDof[0],rawSixDof[2]);
   //angle[1] = _atan2(rawSixDof[1],rawSixDof[2]);
-
   angleTemp = (_atan2(rawSixDof[0],rawSixDof[2])/10.0);
-
 */
 }
 
@@ -307,7 +336,7 @@ void calibrate_sensors() {
   //float                 z_gyro = 0;
   //accel_t_gyro_union    accel_t_gyro;
   
-  Serial.println("Starting Calibration");
+  //Serial.println("Starting Calibration");
 
   // Discard the first set of values read from the IMU
   //read_gyro_accel_vals((uint8_t *) &accel_t_gyro);
@@ -330,7 +359,7 @@ void calibrate_sensors() {
     z_gyro += accel_t_gyro.value.z_gyro;
 */
 
-    delay(100);
+    //delay(100);
   }
   x_accel /= num_readings;
   y_accel /= num_readings;
@@ -340,14 +369,14 @@ void calibrate_sensors() {
   //z_gyro /= num_readings;
   
   // Store the raw calibration values globally
-  base_x_accel = 5.7; //x_accel;
-  base_y_accel = 4.1; //y_accel;
-  base_z_accel = 254.1; //z_accel;
+  base_x_accel = 5; //x_accel;
+  base_y_accel = -1; //y_accel;
+  base_z_accel = 256; //z_accel;
   //base_x_gyro = x_gyro;
-  base_y_gyro = -6.3// y_gyro;
+  base_y_gyro = -10;// y_gyro;
   //base_z_gyro = z_gyro;
-/*
-  Serial.print("base_x_accel: ");
+
+  /*Serial.print("base_x_accel: ");
    Serial.println(base_x_accel);
      Serial.print("base_y_accel: ");
    Serial.println(base_y_accel);
